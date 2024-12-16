@@ -11,7 +11,7 @@ import SwiftUI
 struct PaviaPuzzleApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            GameSelectView()
         }
     }
 }
