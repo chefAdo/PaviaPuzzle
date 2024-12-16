@@ -4,6 +4,7 @@
 //
 //  Created by Adahan on 16/12/24.
 //
+
 import SwiftUI
 import UIKit
 import AVFoundation
@@ -20,21 +21,22 @@ struct MainPuzzleView: View {
     @State private var completed: Bool = false
     @State private var draggingTile: Tile? = nil
     @State private var draggingOffset: CGSize = .zero
-
+    @State private var gridSize: CGSize = .zero
+    @State private var isTimeUp: Bool = false
+    @State private var showTimeUpAlertState: Bool = false
+    
     enum Difficulty {
         case `default`, medium, hard, blitz
 
         var timeLimit: Int? {
             switch self {
-            case .medium: return 60
-            case .hard: return 30
+            case .medium: return 45
+            case .hard: return 100
             case .blitz: return 15
             default: return nil
             }
         }
     }
-
- 
 
     init(puzzleImage: UIImage = UIImage(named: "defaultImage") ?? UIImage(), gridOptions: Int = 3, difficulty: Difficulty = .default) {
         self.puzzleImage = MainPuzzleView.cropToSquare(image: puzzleImage)
@@ -44,39 +46,54 @@ struct MainPuzzleView: View {
 
     var body: some View {
         NavigationView {
-            VStack {
-                if let timeLimit = difficulty.timeLimit {
-                    Text("Time Remaining: \(timeRemaining)")
-                        .font(.headline)
-                        .padding()
+            GeometryReader { geometry in
+                let isPortrait = geometry.size.height >= geometry.size.width
+                let gridDimension = min(geometry.size.width, geometry.size.height)
+
+                VStack {
+                    if isPortrait, let _ = difficulty.timeLimit {
+                        Text("Time Remaining: \(timeRemaining)")
+                            .font(.headline)
+                            .padding(.top)
+                    }
+
+
+                    Spacer()
+
+                    GridView(
+                        tiles: $tiles,
+                        gridSize: gridOptions,
+                        draggingTile: $draggingTile,
+                        draggingOffset: $draggingOffset,
+                        isMovable: !isTimeUp
+                    ) {
+                        handleTileSwap()
+                    }
+                    .frame(width: gridDimension, height: gridDimension)
+                    .background(Color(UIColor.secondarySystemBackground).cornerRadius(12))
+                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)  
+
+                    Spacer()
                 }
-
-                Spacer()
-                
-                GridView(
-                    tiles: $tiles,
-                    gridSize: gridOptions,
-                    draggingTile: $draggingTile,
-                    draggingOffset: $draggingOffset
-                ) {
-                    handleTileSwap()
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                .onAppear {
+                    startGame()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
-                Spacer()
-            }
-
-            .onAppear {
-                startGame()
-            }
-            .onDisappear {
-                pauseTimer()
-            }
-            .navigationTitle("Puzzle")
-            .navigationBarTitleDisplayMode(.large)
-
-            .alert(isPresented: $completed) {
-                Alert(title: Text("Congratulations!"), message: Text("You completed the puzzle!"), dismissButton: .default(Text("OK")))
+                .onDisappear {
+                    pauseTimer()
+                }
+                .navigationTitle(isPortrait ? "Puzzle" : "")
+                .navigationBarTitleDisplayMode(.large)
+                .alert(isPresented: $completed) {
+                    Alert(title: Text("Congratulations!"), message: Text("You completed the puzzle!"), dismissButton: .default(Text("OK")))
+                }
+                .alert(isPresented: $showTimeUpAlertState) {
+                    Alert(
+                        title: Text("Time's Up!"),
+                        message: Text("You ran out of time."),
+                        dismissButton: .default(Text("OK"))
+                    )
+                }
             }
         }
     }
@@ -113,7 +130,6 @@ struct MainPuzzleView: View {
             }
         }
 
- 
         var shuffledTiles = allTiles
         repeat {
             shuffledTiles.shuffle()
@@ -152,14 +168,11 @@ struct MainPuzzleView: View {
     }
 
     private func showTimeUpAlert() {
-        // Present alert logic
-        let alert = UIAlertController(title: "Time's Up!", message: "You ran out of time.", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        UIApplication.shared.windows.first?.rootViewController?.present(alert, animated: true)
+        isTimeUp = true
+        showTimeUpAlertState = true
     }
 }
 
- 
 struct MainPuzzleView_Previews: PreviewProvider {
     static var previews: some View {
         MainPuzzleView()

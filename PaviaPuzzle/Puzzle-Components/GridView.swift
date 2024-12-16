@@ -12,6 +12,7 @@ struct GridView: View {
     let gridSize: Int
     @Binding var draggingTile: Tile?
     @Binding var draggingOffset: CGSize
+    let isMovable: Bool
     let onTileTap: () -> Void
 
     @State private var hoveredTileIndex: Int? = nil
@@ -19,7 +20,7 @@ struct GridView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let tileSize = (geometry.size.width - spacing * CGFloat(gridSize - 1)) / CGFloat(gridSize)
+            let tileSize = geometry.size.width / CGFloat(gridSize)  
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: gridSize), spacing: spacing) {
                 ForEach(Array(tiles.indices), id: \.self) { index in
@@ -37,24 +38,25 @@ struct GridView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .clipped()
+                            .frame(width: tileSize, height: tileSize)
                             .offset(tile == draggingTile ? draggingOffset : .zero)
                             .zIndex(tile == draggingTile ? 1 : 0)
                             .gesture(
-                                isCorrect ? nil : DragGesture()
+                                isMovable && !isCorrect ? DragGesture()
                                     .onChanged { value in
                                         if draggingTile == nil {
                                             draggingTile = tile
                                         }
                                         draggingOffset = value.translation
 
-                                        // Calculate the center position of the dragged tile
+                                     
                                         let currentRow = index / gridSize
                                         let currentCol = index % gridSize
-                                        let centerX = CGFloat(currentCol) * (tileSize + spacing) + tileSize / 2 + draggingOffset.width
-                                        let centerY = CGFloat(currentRow) * (tileSize + spacing) + tileSize / 2 + draggingOffset.height
+                                        let centerX = CGFloat(currentCol) * tileSize + tileSize / 2 + draggingOffset.width
+                                        let centerY = CGFloat(currentRow) * tileSize + tileSize / 2 + draggingOffset.height
 
-                                        let targetRow = Int(centerY / (tileSize + spacing))
-                                        let targetCol = Int(centerX / (tileSize + spacing))
+                                        let targetRow = Int(centerY / tileSize)
+                                        let targetCol = Int(centerX / tileSize)
                                         let targetIndex = targetRow * gridSize + targetCol
 
                                         if targetRow >= 0 && targetRow < gridSize && targetCol >= 0 && targetCol < gridSize {
@@ -92,6 +94,7 @@ struct GridView: View {
 
                                         onTileTap()
                                     }
+                                : nil
                             )
                             .shadow(color: tile == draggingTile ? .black.opacity(0.3) : .clear, radius: 10)
                             .scaleEffect(tile == draggingTile ? 1.05 : 1.0)
@@ -110,11 +113,11 @@ struct GridView: View {
                     .background(
                         tile == draggingTile ? Color.clear : Color(UIColor.secondarySystemBackground)
                     )
+                    .frame(width: tileSize, height: tileSize)
                     .opacity(isCorrect ? 1.0 : (hoveredTileIndex == index ? 0.7 : 0.9))
                 }
             }
-            .frame(width: geometry.size.width, height: geometry.size.width)
+            .frame(width: geometry.size.width, height: geometry.size.width, alignment: .center)
         }
     }
 }
- 

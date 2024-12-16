@@ -10,7 +10,7 @@ import SwiftUI
 struct Tile: Identifiable, Equatable {
     let id = UUID()
     let image: UIImage
-    let position: Int // Intended position in the grid
+    let position: Int 
 
     static func == (lhs: Tile, rhs: Tile) -> Bool {
         lhs.id == rhs.id
