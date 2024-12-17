@@ -8,12 +8,25 @@
 import SwiftUI
 
 struct Tile: Identifiable, Equatable {
-    let id = UUID()
+    let id: UUID
     let image: UIImage
-    let position: Int 
+    var position: Int // Changed from 'let' to 'var'
+
+    // Default initializer
+    init(image: UIImage, position: Int) {
+        self.id = UUID()
+        self.image = image
+        self.position = position
+    }
+
+    // Custom initializer for testing
+    init(id: UUID, image: UIImage, position: Int) {
+        self.id = id
+        self.image = image
+        self.position = position
+    }
 
     static func == (lhs: Tile, rhs: Tile) -> Bool {
-        lhs.id == rhs.id
+        return lhs.id == rhs.id
     }
 }
- 

@@ -4,65 +4,52 @@
 //
 //  Created by Adahan on 16/12/24.
 //
-
+ 
 import SwiftUI
 import UIKit
 import AVFoundation
 
 struct MainPuzzleView: View {
-
-    let puzzleImage: UIImage
-    let gridOptions: Int
+    @Environment(\.presentationMode) var presentationMode
+    @ObservedObject var puzzleModel: PuzzleModel
     let difficulty: Difficulty
+    @State internal var timeRemaining: Int = 0
+    @State internal var timerActive: Bool = false
+    @State internal var draggingTile: Tile? = nil
+    @State internal var draggingOffset: CGSize = .zero
+    @State internal var isTimeUp: Bool = false
+    @State internal var isLoading: Bool = false
+    @State internal var isTimeCritical: Bool = false
 
-    @State private var timeRemaining: Int = 0
-    @State private var timerActive: Bool = false
-    @State private var tiles: [Tile] = []
-    @State private var completed: Bool = false
-    @State private var draggingTile: Tile? = nil
-    @State private var draggingOffset: CGSize = .zero
-    @State private var gridSize: CGSize = .zero
-    @State private var isTimeUp: Bool = false
-    @State private var showTimeUpAlertState: Bool = false
-    
-    enum Difficulty {
-        case `default`, medium, hard, blitz
+    enum ActiveAlert: Identifiable {
+        case completion, timeUp
 
-        var timeLimit: Int? {
+        var id: Int {
             switch self {
-            case .medium: return 45
-            case .hard: return 100
-            case .blitz: return 15
-            default: return nil
+            case .completion: return 1
+            case .timeUp: return 2
             }
         }
     }
 
-    init(puzzleImage: UIImage = UIImage(named: "defaultImage") ?? UIImage(), gridOptions: Int = 3, difficulty: Difficulty = .default) {
-        self.puzzleImage = MainPuzzleView.cropToSquare(image: puzzleImage)
-        self.gridOptions = gridOptions
-        self.difficulty = difficulty
+    @State internal var activeAlert: ActiveAlert? = nil
+
+    init(puzzleModel: PuzzleModel) {
+        self.puzzleModel = puzzleModel
+        self.difficulty = puzzleModel.difficulty
     }
 
     var body: some View {
-        NavigationView {
+        ZStack {
             GeometryReader { geometry in
                 let isPortrait = geometry.size.height >= geometry.size.width
                 let gridDimension = min(geometry.size.width, geometry.size.height)
 
-                VStack {
-                    if isPortrait, let _ = difficulty.timeLimit {
-                        Text("Time Remaining: \(timeRemaining)")
-                            .font(.headline)
-                            .padding(.top)
-                    }
-
-
-                    Spacer()
-
+                ZStack {
+                    // Grid View
                     GridView(
-                        tiles: $tiles,
-                        gridSize: gridOptions,
+                        tiles: $puzzleModel.tiles,
+                        gridSize: puzzleModel.gridOptions,
                         draggingTile: $draggingTile,
                         draggingOffset: $draggingOffset,
                         isMovable: !isTimeUp
@@ -70,111 +57,151 @@ struct MainPuzzleView: View {
                         handleTileSwap()
                     }
                     .frame(width: gridDimension, height: gridDimension)
-                    .background(Color(UIColor.secondarySystemBackground).cornerRadius(12))
-                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)  
+                    .background(Color.clear)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    .onAppear {
+                        startGame()
+                        timeRemaining = difficulty.timeLimit ?? 0 // Ensure timer value is set
+                    }
 
-                    Spacer()
+                    .onDisappear { pauseTimer() }
+
+                    // Timer Label
+                    if let timeLimit = difficulty.timeLimit {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Text("Time Left: \(timeRemaining)s")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(isTimeCritical ? Color.red : Color(UIColor.secondarySystemBackground))
+                                            .animation(.easeInOut(duration: 0.5), value: isTimeCritical)
+                                    )
+                                    .accessibilityIdentifier("timerLabel") // Added identifier
+                                    .onAppear {
+                                        isTimeCritical = false
+                                    }
+                                    .padding(.top, isPortrait ? geometry.safeAreaInsets.top + 60 : geometry.safeAreaInsets.top + 20)
+                                    .padding(.trailing, geometry.safeAreaInsets.trailing + 16)
+                            }
+                            Spacer()
+                        }
+                    }
                 }
-                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
-                .onAppear {
-                    startGame()
-                }
-                .onDisappear {
-                    pauseTimer()
-                }
-                .navigationTitle(isPortrait ? "Puzzle" : "")
-                .navigationBarTitleDisplayMode(.large)
-                .alert(isPresented: $completed) {
-                    Alert(title: Text("Congratulations!"), message: Text("You completed the puzzle!"), dismissButton: .default(Text("OK")))
-                }
-                .alert(isPresented: $showTimeUpAlertState) {
-                    Alert(
-                        title: Text("Time's Up!"),
-                        message: Text("You ran out of time."),
-                        dismissButton: .default(Text("OK"))
-                    )
-                }
+            }
+            .edgesIgnoringSafeArea(.all)
+
+            if isLoading {
+                Color.black.opacity(0.5).edgesIgnoringSafeArea(.all)
+                ProgressView("Loading...")
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(2)
+                    .accessibilityIdentifier("LoadingIndicator") // Added identifier
+            }
+        }
+        .alert(item: $activeAlert) { alert in
+            DispatchQueue.main.async {
+                resetDraggingState()
+            }
+            switch alert {
+            case .completion:
+                return Alert(
+                    title: Text("Congratulations!"),
+                    message: Text("You completed the puzzle!"),
+                    primaryButton: .default(Text("New Puzzle")) { loadFunambolPuzzle() },
+                    secondaryButton: .destructive(Text("Quit")) { presentationMode.wrappedValue.dismiss() }
+                )
+            case .timeUp:
+                return Alert(
+                    title: Text("Time's Up!"),
+                    message: Text("You ran out of time."),
+                    primaryButton: .default(Text("New Puzzle")) { loadFunambolPuzzle() },
+                    secondaryButton: .destructive(Text("Quit")) { presentationMode.wrappedValue.dismiss() }
+                )
             }
         }
     }
 
-    private func handleTileSwap() {
-        if tiles.allSatisfy({ $0.position == tiles.firstIndex(of: $0) }) {
-            completed = true
+    internal func handleTileSwap() {
+        if puzzleModel.tiles.enumerated().allSatisfy({ $0.element.position == $0.offset }) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                activeAlert = .completion
+            }
             pauseTimer()
         }
     }
 
-    private func startGame() {
-        setupTiles()
+    internal func startGame() {
+        DispatchQueue.main.async {
+            resetDraggingState()
+        }
         if let timeLimit = difficulty.timeLimit {
             timeRemaining = timeLimit
+            isTimeCritical = false
             startTimer()
         }
     }
 
-    private func setupTiles() {
-        let tileSize = puzzleImage.size.width / CGFloat(gridOptions)
-        var allTiles: [Tile] = []
-
-        for row in 0..<gridOptions {
-            for col in 0..<gridOptions {
-                let x = CGFloat(col) * tileSize
-                let y = CGFloat(row) * tileSize
-                let tileRect = CGRect(x: x, y: y, width: tileSize, height: tileSize)
-
-                if let tileImage = puzzleImage.cgImage?.cropping(to: tileRect) {
-                    let uiImage = UIImage(cgImage: tileImage)
-                    allTiles.append(Tile(image: uiImage, position: row * gridOptions + col))
-                }
-            }
+    internal func resetDraggingState() {
+        DispatchQueue.main.async {
+            draggingTile = nil
+            draggingOffset = .zero
         }
-
-        var shuffledTiles = allTiles
-        repeat {
-            shuffledTiles.shuffle()
-        } while shuffledTiles.enumerated().contains { $0.element.position == $0.offset }
-
-        tiles = shuffledTiles
     }
 
-    private static func cropToSquare(image: UIImage) -> UIImage {
+    internal func loadFunambolPuzzle() {
+        isLoading = true
+        let url = URL(string: "https://picsum.photos/1024")!
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            DispatchQueue.main.async {
+                if let data = data, let image = UIImage(data: data) {
+                    self.puzzleModel.puzzleImage = image
+                }
+                isLoading = false
+                startGame()
+            }
+        }.resume()
+    }
+
+    internal func startTimer() {
+        timerActive = true
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+            guard timerActive else { timer.invalidate(); return }
+            if timeRemaining > 0 {
+                timeRemaining -= 1
+                if timeRemaining <= 5 {
+                    isTimeCritical = true
+                }
+            } else {
+                timer.invalidate()
+                activeAlert = .timeUp
+            }
+        }
+    }
+
+    internal func pauseTimer() {
+        timerActive = false
+    }
+
+    internal static func cropToSquare(image: UIImage) -> UIImage {
         let originalSize = image.size
         let squareSize = min(originalSize.width, originalSize.height)
         let xOffset = (originalSize.width - squareSize) / 2
         let yOffset = (originalSize.height - squareSize) / 2
         let cropRect = CGRect(x: xOffset, y: yOffset, width: squareSize, height: squareSize)
-
         guard let cgImage = image.cgImage?.cropping(to: cropRect) else { return image }
         return UIImage(cgImage: cgImage)
-    }
-
-    private func startTimer() {
-        timerActive = true
-        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
-            guard timerActive else { timer.invalidate(); return }
-
-            if timeRemaining > 0 {
-                timeRemaining -= 1
-            } else {
-                timer.invalidate()
-                showTimeUpAlert()
-            }
-        }
-    }
-
-    private func pauseTimer() {
-        timerActive = false
-    }
-
-    private func showTimeUpAlert() {
-        isTimeUp = true
-        showTimeUpAlertState = true
     }
 }
 
 struct MainPuzzleView_Previews: PreviewProvider {
     static var previews: some View {
-        MainPuzzleView()
+        let puzzleImage = UIImage(named: "defaultImage") ?? UIImage()
+        let puzzleModel = PuzzleModel(puzzleImage: puzzleImage, gridOptions: 3, difficulty: .default)
+        MainPuzzleView(puzzleModel: puzzleModel)
     }
 }
