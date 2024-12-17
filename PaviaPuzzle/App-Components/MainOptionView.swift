@@ -4,7 +4,7 @@
 //
 //  Created by Adahan on 16/12/24.
 //
-
+ 
 import SwiftUI
 
 struct MainOptionView: View {
@@ -13,6 +13,7 @@ struct MainOptionView: View {
     let backgroundColor: Color
     let title: String
     let description: String
+    var accessibilityIdentifier: String? = nil // Added parameter
 
     var body: some View {
         HStack(spacing: 16) {
@@ -55,14 +56,18 @@ struct MainOptionView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.gray.opacity(0.5), lineWidth: 2)
         )
+        .accessibilityElement()
+        .accessibilityIdentifier(accessibilityIdentifier ?? title) // Assigning identifier
     }
 }
+
 #Preview {
     MainOptionView(
         imageName: "gamecontroller.fill",
         imageColor: .blue,
         backgroundColor: .blue,
         title: "Funambol Puzzle",
-        description: "The original prompt-based 3x3 grid puzzle."
+        description: "The original prompt-based 3x3 grid puzzle.",
+        accessibilityIdentifier: "funambolPuzzleButton" // Example identifier
     )
 }

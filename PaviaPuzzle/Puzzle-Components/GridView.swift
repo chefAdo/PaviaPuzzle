@@ -5,7 +5,11 @@
 //  Created by Adahan on 16/12/24.
 //
 
+// GridView.swift
+// PaviaPuzzle
+
 import SwiftUI
+import UIKit
 
 struct GridView: View {
     @Binding var tiles: [Tile]
@@ -20,7 +24,7 @@ struct GridView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let tileSize = geometry.size.width / CGFloat(gridSize)  
+            let tileSize = geometry.size.width / CGFloat(gridSize)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: gridSize), spacing: spacing) {
                 ForEach(Array(tiles.indices), id: \.self) { index in
@@ -49,7 +53,6 @@ struct GridView: View {
                                         }
                                         draggingOffset = value.translation
 
-                                     
                                         let currentRow = index / gridSize
                                         let currentCol = index % gridSize
                                         let centerX = CGFloat(currentCol) * tileSize + tileSize / 2 + draggingOffset.width
@@ -103,6 +106,7 @@ struct GridView: View {
                                 RoundedRectangle(cornerRadius: 0)
                                     .stroke(Color.gray, lineWidth: 0)
                             )
+                            .accessibilityIdentifier("tile_\(index)") // Added identifier
 
                         if hoveredTileIndex == index {
                             Color.black.opacity(0.2)
@@ -111,7 +115,7 @@ struct GridView: View {
                         }
                     }
                     .background(
-                        tile == draggingTile ? Color.clear : Color(UIColor.secondarySystemBackground)
+                        tile == draggingTile ? Color.clear : Color(UIColor.clear)
                     )
                     .frame(width: tileSize, height: tileSize)
                     .opacity(isCorrect ? 1.0 : (hoveredTileIndex == index ? 0.7 : 0.9))

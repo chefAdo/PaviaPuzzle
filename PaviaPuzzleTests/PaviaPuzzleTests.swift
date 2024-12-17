@@ -2,7 +2,7 @@
 //  PaviaPuzzleTests.swift
 //  PaviaPuzzleTests
 //
-//  Created by Adahan on 16/12/24.
+//  Created by Adahan on 17/12/24.
 //
 
 import XCTest
@@ -10,27 +10,36 @@ import XCTest
 
 final class PaviaPuzzleTests: XCTestCase {
 
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+    func testPuzzleModelInitialization() {
+        let testImage = UIImage(systemName: "square") ?? UIImage()
+        let model = PuzzleModel(puzzleImage: testImage, gridOptions: 3, difficulty: .default)
+        XCTAssertEqual(model.tiles.count, 9, "3x3 grid should have 9 tiles")
+    }
+    
+    func testTileSetup() {
+        let testImage = UIImage(systemName: "square") ?? UIImage()
+        let model = PuzzleModel(puzzleImage: testImage, gridOptions: 3, difficulty: .default)
+        XCTAssertFalse(model.tiles.isEmpty, "Tiles should be set up properly")
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    func testTileSwap() {
+        let testImage = UIImage(systemName: "square") ?? UIImage()
+        let model = PuzzleModel(puzzleImage: testImage, gridOptions: 3, difficulty: .default)
+        let originalFirstTile = model.tiles[0]
+        let originalSecondTile = model.tiles[1]
+        
+        model.swapTiles(at: 0, with: 1)
+        
+        XCTAssertEqual(model.tiles[0], originalSecondTile)
+        XCTAssertEqual(model.tiles[1], originalFirstTile)
     }
-
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
+    
+    func testCompletionCheck() {
+        let testImage = UIImage(systemName: "square") ?? UIImage()
+        let model = PuzzleModel(puzzleImage: testImage, gridOptions: 3, difficulty: .default)
+        
+        model.tiles = model.tiles.sorted(by: { $0.position < $1.position })
+        
+        XCTAssertTrue(model.tiles.enumerated().allSatisfy { $0.element.position == $0.offset }, "Puzzle should be completed")
     }
-
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
-    }
-
 }

@@ -4,48 +4,64 @@
 //
 //  Created by Adahan on 16/12/24.
 //
+ 
+// GameSelectView.swift
+// PaviaPuzzle
 
-import Foundation
 import SwiftUI
+
 struct GameSelectView: View {
     @State private var isLoading = false
     @State private var fetchedImage: UIImage? = nil
     @State private var showPuzzleView = false
 
-    var body: some View {
-           NavigationStack {
-               VStack(spacing: 24) {
-                   VStack(spacing: 16) {
-                   }
-                   VStack(spacing: 16) {
-                       Button(action: loadFunambolPuzzle) {
-                           MainOptionView(
-                               imageName: "gamecontroller.fill",
-                               imageColor: .blue,
-                               backgroundColor: .blue,
-                               title: "Funambol Puzzle",
-                               description: "The original prompt-based 3x3 grid puzzle."
-                           )
-                       }
-                   }
-                   .padding(.horizontal)
+    @State private var puzzleModel: PuzzleModel? = nil
 
-                   Spacer()
-               }
-               .overlay(
-                   isLoading ? ProgressView("Loading...").scaleEffect(1.5) : nil
-               )
-               .navigationTitle("Pavia Puzzle")
-               .navigationBarTitleDisplayMode(.large)
-               .navigationDestination(isPresented: $showPuzzleView) {
-                   MainPuzzleView(
-                       puzzleImage: fetchedImage ?? UIImage(named: "defaultImage") ?? UIImage(),
-                       gridOptions: 3,
-                       difficulty: .default
-                   )
-               }
-           }
-       }
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                VStack(spacing: 16) { }
+                VStack(spacing: 16) {
+                    Button(action: loadFunambolPuzzle) {
+                        MainOptionView(
+                            imageName: "puzzlepiece.fill",
+                            imageColor: .white,
+                            backgroundColor: .orange,
+                            title: "Funambol Puzzle",
+                            description: "The original prompt 3x3 grid puzzle."
+                        )
+                    }
+                    .accessibilityIdentifier("funambolPuzzleButton") // Moved identifier to Button
+                }
+                .padding(.horizontal)
+                VStack(spacing: 16) {
+                    NavigationLink(destination: CustomGameView()) {
+                        MainOptionView(
+                            imageName: "gearshape.fill",
+                            imageColor: .white,
+                            backgroundColor: .gray,
+                            title: "Custom Game",
+                            description: "Why not add some twist in it eh?"
+                        )
+                    }
+                    .accessibilityIdentifier("customGameButton") // Moved identifier to Button
+                }
+                .padding(.horizontal)
+
+                Spacer()
+            }
+            .overlay(
+                isLoading ? ProgressView("Loading...").scaleEffect(1.5).accessibilityIdentifier("LoadingIndicator") : nil
+            )
+            .navigationTitle("Pavia Puzzle")
+            .navigationBarTitleDisplayMode(.large)
+            .navigationDestination(isPresented: $showPuzzleView) {
+                if let puzzleModel = puzzleModel {
+                    MainPuzzleView(puzzleModel: puzzleModel)
+                }
+            }
+        }
+    }
 
     private func loadFunambolPuzzle() {
         isLoading = true
@@ -60,15 +76,16 @@ struct GameSelectView: View {
                     self.fetchedImage = UIImage(named: "defaultImage")
                 }
 
+                let puzzleImage = self.fetchedImage ?? UIImage(named: "defaultImage") ?? UIImage()
+                self.puzzleModel = PuzzleModel(puzzleImage: puzzleImage, gridOptions: 3, difficulty: .default)
+
                 self.isLoading = false
-                self.showPuzzleView = true  
+                self.showPuzzleView = true
             }
         }.resume()
     }
 }
 
-
- 
 struct GameSelectView_Previews: PreviewProvider {
     static var previews: some View {
         GameSelectView()
